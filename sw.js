@@ -9,7 +9,7 @@
 
    Sube CACHE_VERSION cada vez que publiques cambios. */
 
-const CACHE_VERSION = 'ld-v5';
+const CACHE_VERSION = 'ld-v8';
 const SHELL = CACHE_VERSION + '-shell';
 const MEDIA = CACHE_VERSION + '-media';
 const MAX_MEDIA = 80;

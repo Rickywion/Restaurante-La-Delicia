@@ -77,8 +77,8 @@ window.LD_PLATOS = [
   /* ---------------------------- ANTOJITOS ---------------------------- */
   { id:'a1', cat:'antojitos', nombre:'Empanadas', desc:'De queso, pollo, carne o hawaiana.', precio:1.25, img:'ant-empanadas', destacado:true },
   { id:'a2', cat:'antojitos', nombre:'Humitas', desc:'Humita de choclo tierno, recién sacada de la olla.', precio:1.00, img:null },
-  { id:'a3', cat:'antojitos', nombre:'Bolones', desc:'Verde majado con relleno a elección.', precio:null, img:'combo-bolon',
-    variantes:[{etiqueta:'De queso',precio:1.50},{etiqueta:'De chicharrón',precio:1.75},{etiqueta:'Mixto',precio:2.00}] },
+  /* Bolones ya está en Desayunos (d5-d7, como combo con huevos + café);
+     se retiró de aquí para no repetir el mismo plato en dos secciones. */
   { id:'a4', cat:'antojitos', nombre:'Sánduche', desc:'Jamón, queso mozzarella, lechuga crespa, tomate y mayonesa de la casa.', precio:null, img:'ant-sanduche', destacado:true,
     variantes:[{etiqueta:'Solo',precio:2.25},{etiqueta:'Combo con jugo',precio:3.50},{etiqueta:'Combo con batido',precio:3.75}] },
   { id:'a5', cat:'antojitos', nombre:'Bowl de frutas', desc:'Fruta fresca picada del día.', precio:1.00, img:null },

@@ -74,16 +74,30 @@ function tarjetaPlato(p, i) {
   let tags = (p.tags || []).map(t => `<span class="chip">${esc(t)}</span>`).join('');
   if (p.nota) tags += `<span class="chip">${esc(p.nota)}</span>`;
 
+  /* "Añadir al carrito" solo si hay un precio numérico para cobrar: el
+     propio o, si tiene variantes, el de la primera (la más económica en
+     casi todos los platos). Sin precio (p.ej. "consultar precio del día")
+     solo queda "Comprar directo", que ya deja el precio a coordinar por WhatsApp. */
+  const precioCarrito = typeof p.precio === 'number' ? p.precio
+    : (p.variantes && p.variantes.length ? p.variantes[0].precio : null);
+  const addBtn = precioCarrito != null
+    ? `<button class="plato__add" type="button" data-add="${p.id}">` +
+        `<svg aria-hidden="true"><use href="#i-bag"></use></svg>` +
+        `<span>Añadir al carrito</span></button>`
+    : '';
+
   return `<article class="plato" data-rv="card" style="--d:${Math.min(i, 7) * 60}ms">${media}` +
     `<div class="plato__body">` +
       `<div class="plato__top"><h4 class="plato__name">${esc(p.nombre)}</h4>${precio}</div>` +
       `<p class="plato__desc">${esc(p.desc)}</p>` +
       (vars ? `<div class="plato__vars">${vars}</div>` : '') +
       (tags ? `<div class="plato__tags">${tags}</div>` : '') +
-      `<a class="plato__wa" href="${waDish(p)}" target="_blank" rel="noopener">` +
-        `<svg aria-hidden="true"><use href="#i-wa"></use></svg>` +
-        `<span class="plato__wa-txt">Pedir para llevar</span>` +
-        `<span class="sr-only"> ${esc(p.nombre)}</span></a>` +
+      `<div class="plato__actions">${addBtn}` +
+        `<a class="plato__wa" href="${waDish(p)}" target="_blank" rel="noopener">` +
+          `<svg aria-hidden="true"><use href="#i-wa"></use></svg>` +
+          `<span class="plato__wa-txt">Comprar directo</span>` +
+          `<span class="sr-only"> ${esc(p.nombre)}</span></a>` +
+      `</div>` +
     `</div></article>`;
 }
 

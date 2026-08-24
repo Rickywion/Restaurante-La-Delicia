@@ -63,7 +63,7 @@ a { color: inherit; }
   --z-base: 1; --z-sticky: 40; --z-nav: 60; --z-fab: 70; --z-overlay: 90; --z-modal: 100;
 
   /* Alto de la banda que funde una sección con la siguiente */
-  --costura: clamp(240px, 26vw, 380px);
+  --costura: clamp(96px, 11vw, 150px);
 
   /* Ruido de 160px que rompe las franjas de los degradados largos.
      Sin él, un fundido de 600px en 8 bits deja escalones visibles. */
@@ -164,12 +164,29 @@ body {
 .sec > .wrap { position: relative; z-index: 1; }
 
 /* Las secciones que pueden llevar costura reservan sitio arriba para que
-   el fundido termine ANTES del primer texto. Es un valor fijo, no depende
-   del tono: si cambiara al pulsar una pestaña, el contenido daría un salto. */
-.sec.sec--fundido { padding-top: calc(var(--costura) + clamp(24px, 3.5vw, 56px)); }
+   el fundido termine ANTES del primer texto.
+   Ese hueco SOLO se reserva cuando la banda existe de verdad, es decir
+   cuando la sección anterior es del otro tono. Antes era un valor fijo y
+   en el caso más común (dos secciones del mismo tono, como favoritos y
+   la carta) dejaba ~270px de vacío reservados para un fundido que nunca
+   se pinta. Al pulsar una pestaña que cambia la piel de la carta el hueco
+   crece, pero lo hace con la misma transición lenta del cambio de tono,
+   así que acompaña al fundido en vez de dar un salto seco. */
+.sec.sec--fundido {
+  padding-top: clamp(32px, 4.5vw, 56px);   /* mismo ritmo que .pad-y */
+  transition: background var(--t-tone) var(--e-tone), color var(--t-tone) var(--e-tone),
+              padding-top var(--t-tone) var(--e-tone);
+}
+/* No hace falta despejar la banda entera: su mitad inferior ya está casi
+   transparente y el contenido va por encima (z-index), así que reservar
+   ~62% deja el texto limpio sin abrir un socavón. */
+.sec[data-tone="brasa"] + .sec--fundido[data-tone="dia"],
+.sec[data-tone="dia"] + .sec--fundido[data-tone="brasa"] {
+  padding-top: calc(var(--costura) * 0.62 + clamp(14px, 2vw, 30px));
+}
 
 .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
-.pad-y { padding-block: clamp(64px, 9vw, 128px); }
+.pad-y { padding-block: clamp(32px, 4.5vw, 56px); }
 
 h1, h2, h3, h4 { font-family: var(--f-head); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; text-wrap: balance; }
 h2 { font-size: var(--fs-xl); text-transform: uppercase; }
@@ -479,7 +496,7 @@ p { max-width: 68ch; }
 @keyframes slide { to { transform: translateX(-50%); } }
 
 /* ------------------------------ 8. Favoritos ------------------------ */
-.sec__head { display: grid; gap: var(--sp-4); margin-bottom: var(--sp-7); max-width: 62ch; }
+.sec__head { display: grid; gap: var(--sp-3); margin-bottom: var(--sp-6); max-width: 62ch; }
 .favs { display: grid; gap: var(--sp-4); grid-template-columns: 1fr; }
 @media (min-width: 700px) { .favs { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1040px) {
@@ -597,7 +614,7 @@ p { max-width: 68ch; }
 .platos { display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
 
 /* --- Vista "Todo" agrupada por sección ------------------------------- */
-.platos-grupos { display: grid; gap: clamp(48px, 7vw, 88px); }
+.platos-grupos { display: grid; gap: clamp(30px, 5vw, 56px); }
 .grupo__cab {
   display: grid; grid-template-columns: auto 1fr auto; align-items: baseline;
   gap: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-5);
@@ -661,28 +678,41 @@ p { max-width: 68ch; }
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent-text); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.plato__wa {
+.plato__actions {
   margin-top: auto; padding-top: var(--sp-3);
-  display: inline-flex; align-items: center; gap: 8px; align-self: start;
-  font-family: var(--f-head); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .12em;
-  color: var(--fg-dim); text-decoration: none; min-height: 44px; align-items: center;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+}
+.plato__add {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 18px;
+  font-family: var(--f-head); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em;
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: var(--r-pill); cursor: pointer;
+  transition: transform var(--t-fast) var(--e-out), box-shadow var(--t-fast) var(--e-out);
+  touch-action: manipulation;
+}
+.plato__add:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--accent) 70%, transparent); }
+.plato__add:active { transform: translateY(0) scale(.98); }
+.plato__add svg { width: 16px; height: 16px; flex: none; }
+.plato__wa {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--f-head); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fg-dim); text-decoration: none; min-height: 42px;
   transition: color var(--t-fast) var(--e-soft), gap var(--t-fast) var(--e-out);
 }
-.plato__wa svg { width: 18px; height: 18px; color: #25D366; }
-.plato__wa:hover { color: var(--fg); gap: 12px; }
+.plato__wa svg { width: 16px; height: 16px; color: #25D366; }
+.plato__wa:hover { color: var(--fg); gap: 9px; }
 
 .vacio { display: grid; gap: var(--sp-4); justify-items: center; text-align: center; padding-block: var(--sp-8); }
 .vacio svg { width: 44px; height: 44px; color: var(--fg-dim); }
 
 .carta__nota {
-  margin-top: var(--sp-7); padding: var(--sp-5);
+  margin-top: var(--sp-5); padding: var(--sp-5);
   border: 1px dashed var(--line-strong); border-radius: var(--r-lg);
   display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--fg-dim);
 }
 
 /* ------------------------------ 10. Ambiente ------------------------ */
-.duo { display: grid; gap: var(--sp-7); align-items: center; }
-@media (min-width: 900px) { .duo { grid-template-columns: 1.05fr 1fr; gap: var(--sp-9); } }
+.duo { display: grid; gap: var(--sp-5); align-items: center; }
+@media (min-width: 900px) { .duo { grid-template-columns: 1.05fr 1fr; gap: var(--sp-7); } }
 
 .galeria { display: grid; gap: var(--sp-3); grid-template-columns: repeat(2, 1fr); }
 .galeria figure { position: relative; overflow: hidden; border-radius: var(--r-lg); border: 1px solid var(--line); margin: 0; }
@@ -739,7 +769,7 @@ p { max-width: 68ch; }
   background: var(--price-bg); color: var(--price-fg); font-family: var(--f-head); font-size: 14px; flex: none;
 }
 
-.metricas { display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: var(--sp-7); }
+.metricas { display: grid; gap: var(--sp-4); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: var(--sp-5); }
 .metrica { text-align: center; padding: var(--sp-5) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .metrica b { display: block; font-family: var(--f-head); font-size: clamp(1.8rem, 5vw, 2.6rem); color: var(--accent-text); line-height: 1; font-variant-numeric: tabular-nums; }
 .metrica span { font-family: var(--f-head); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .16em; color: var(--fg-dim); }
@@ -807,6 +837,121 @@ p { max-width: 68ch; }
   box-shadow: 0 0 0 0 rgba(37,211,102,.55); animation: ping 2.8s var(--e-soft) infinite;
 }
 @keyframes ping { 70%, 100% { box-shadow: 0 0 0 18px rgba(37,211,102,0); } }
+
+/* --------------------------- 13b. Carrito ---------------------------- */
+.carrito-fab {
+  position: fixed; right: clamp(14px, 3vw, 28px);
+  bottom: calc(clamp(14px, 3vw, 28px) + 68px);
+  z-index: var(--z-fab); width: 56px; height: 56px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--ember); color: #fff;
+  box-shadow: 0 18px 40px -16px rgba(255,106,0,.7);
+  transition: transform var(--t-base) var(--e-out), box-shadow var(--t-base) var(--e-out);
+  touch-action: manipulation;
+}
+.carrito-fab:hover { transform: translateY(-3px); box-shadow: 0 22px 48px -14px rgba(255,106,0,.85); }
+.carrito-fab svg { width: 23px; height: 23px; }
+.carrito-fab__badge {
+  position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 5px;
+  border-radius: var(--r-pill); background: var(--carbon); color: #fff;
+  border: 2px solid var(--cream); box-sizing: content-box;
+  font-family: var(--f-head); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.carrito-fab.is-bump { animation: carritoBump 420ms var(--e-out); }
+@keyframes carritoBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+.carrito-overlay {
+  position: fixed; inset: 0; z-index: var(--z-overlay);
+  background: rgba(8,6,5,.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  opacity: 0; visibility: hidden; transition: opacity var(--t-base) var(--e-soft), visibility var(--t-base);
+}
+.carrito-overlay[data-open="true"] { opacity: 1; visibility: visible; }
+
+.carrito-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-modal);
+  width: min(420px, 100vw); display: flex; flex-direction: column;
+  background: rgba(18,14,11,.98); color: #F6EFE8;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-left: 1px solid rgba(255,255,255,.1);
+  box-shadow: -24px 0 60px -24px rgba(0,0,0,.7);
+  transform: translateX(100%); transition: transform var(--t-slow) var(--e-out);
+  padding: var(--sp-5); gap: var(--sp-4);
+}
+.carrito-panel[data-open="true"] { transform: none; }
+.carrito-panel__head { display: flex; align-items: center; justify-content: space-between; flex: none; }
+.carrito-panel__head h3 {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--f-head); text-transform: uppercase; letter-spacing: .05em; font-size: var(--fs-md);
+}
+.carrito-panel__head svg { width: 21px; height: 21px; color: var(--ember-soft); }
+.carrito-panel .cerrar {
+  background: transparent; border: 0; width: 40px; height: 40px; border-radius: var(--r-pill);
+  cursor: pointer; color: #F6EFE8; display: inline-flex; align-items: center; justify-content: center;
+}
+.carrito-panel .cerrar:hover { background: rgba(255,255,255,.1); }
+.carrito-panel .cerrar svg { width: 18px; height: 18px; }
+
+.carrito-lista { display: grid; gap: var(--sp-4); overflow-y: auto; flex: 1; padding-right: 2px; align-content: start; }
+
+/* Tarjeta vertical: nombre + precio arriba, foto grande en medio,
+   cantidad / subtotal / eliminar abajo. */
+.carrito-item {
+  display: grid; gap: var(--sp-2);
+  padding: var(--sp-3); border-radius: var(--r-lg);
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+}
+.carrito-item__cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.carrito-item__nombre { font-family: var(--f-head); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .02em; line-height: 1.2; }
+.carrito-item__var { color: #BCADA1; font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-size: var(--fs-xs); }
+.carrito-item__precio { flex: none; font-size: var(--fs-xs); color: #BCADA1; }
+
+.carrito-item__foto {
+  width: 100%; height: 128px; object-fit: cover;
+  border-radius: var(--r-md); border: 1px solid rgba(255,255,255,.12);
+  background: var(--carbon-2);
+}
+.carrito-item__foto--vacia {
+  display: grid; place-items: center;
+  font-family: var(--f-display); font-style: italic; font-weight: 700;
+  font-size: 3rem; line-height: 1; color: var(--ember-soft); opacity: .5;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,106,0,.10) 0 2px, transparent 2px 12px),
+    radial-gradient(90% 130% at 50% 0%, rgba(255,106,0,.18), transparent 72%),
+    var(--carbon-2);
+}
+
+.carrito-item__pie { display: flex; align-items: center; gap: var(--sp-3); }
+.carrito-item__cant { display: inline-flex; align-items: center; gap: 10px; }
+.carrito-item__cant button {
+  width: 30px; height: 30px; border-radius: var(--r-pill); border: 1.5px solid rgba(255,255,255,.22);
+  background: transparent; cursor: pointer; font-size: 16px; line-height: 1; color: #F6EFE8;
+}
+.carrito-item__cant button:hover { background: rgba(255,255,255,.1); }
+.carrito-item__cant span { min-width: 1.2em; text-align: center; }
+.carrito-item__sub { margin-left: auto; font-family: var(--f-head); font-weight: 600; font-size: var(--fs-md); color: var(--ember-soft); }
+.carrito-item__quitar {
+  flex: none; background: transparent; border: 0; cursor: pointer;
+  color: #BCADA1; width: 30px; height: 30px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.carrito-item__quitar svg { width: 15px; height: 15px; }
+.carrito-item__quitar:hover { color: #fff; background: rgba(255,106,0,.25); }
+
+.carrito-vacio { color: #BCADA1; font-size: var(--fs-sm); text-align: center; margin: auto 0; }
+
+.carrito-panel__foot { display: grid; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid rgba(255,255,255,.12); flex: none; }
+.carrito-panel__foot[hidden] { display: none; }
+.carrito-total {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--f-head); text-transform: uppercase; letter-spacing: .05em;
+}
+.carrito-total span:last-child { font-size: var(--fs-lg); color: var(--ember-soft); font-variant-numeric: tabular-nums; }
 
 /* ------------------------------ 14. Instalar PWA -------------------- */
 .instalar {
@@ -989,7 +1134,8 @@ p { max-width: 68ch; }
 
 /* ------------------------------ 17. Print --------------------------- */
 @media print {
-  .nav, .fab, .instalar, .hero__embers, .marquee, .carta__toolbar, .mapa, .drawer { display: none !important; }
+  .nav, .fab, .instalar, .hero__embers, .marquee, .carta__toolbar, .mapa, .drawer,
+  .carrito-fab, .carrito-overlay, .carrito-panel { display: none !important; }
   body, .sec { background: #fff !important; color: #000 !important; }
   .plato { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; }
   .plato__media { display: none; }

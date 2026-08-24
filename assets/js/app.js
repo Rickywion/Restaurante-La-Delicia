@@ -50,6 +50,206 @@
   }
 
   /* ---------------------------------------------------------------
+     1b. Carrito de compras (localStorage + pedido consolidado por WhatsApp)
+     Los platos con variantes (menestras, sánduche, morocho…) se agregan
+     con la primera variante de la lista — casi siempre la más económica —
+     y esa etiqueta queda visible en el carrito y en el mensaje final.
+  --------------------------------------------------------------- */
+  var CARRITO_KEY = 'ld-carrito';
+  var carrito = [];
+
+  function precioAgregable(p) {
+    if (typeof p.precio === 'number') return p.precio;
+    if (p.variantes && p.variantes.length) return p.variantes[0].precio;
+    return null;
+  }
+  function etiquetaAgregable(p) {
+    return (p.variantes && p.variantes.length) ? p.variantes[0].etiqueta : null;
+  }
+
+  function cargarCarrito() {
+    try {
+      var raw = localStorage.getItem(CARRITO_KEY);
+      carrito = raw ? JSON.parse(raw) : [];
+    } catch (e) { carrito = []; }
+  }
+  function guardarCarrito() {
+    try { localStorage.setItem(CARRITO_KEY, JSON.stringify(carrito)); } catch (e) { /* modo privado */ }
+  }
+
+  function totalCarrito() {
+    return carrito.reduce(function (s, x) { return s + x.precio * x.cantidad; }, 0);
+  }
+  function unidadesCarrito() {
+    return carrito.reduce(function (s, x) { return s + x.cantidad; }, 0);
+  }
+
+  function agregarAlCarrito(id) {
+    var p = DISHES.filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    var precio = precioAgregable(p);
+    if (precio == null) return;
+    var etiqueta = etiquetaAgregable(p);
+    var key = id + (etiqueta ? '::' + etiqueta : '');
+
+    var item = carrito.filter(function (x) { return x.key === key; })[0];
+    if (item) item.cantidad += 1;
+    else carrito.push({ key: key, id: id, nombre: p.nombre, etiqueta: etiqueta,
+                        precio: precio, cantidad: 1, img: p.img || null });
+
+    guardarCarrito();
+    renderCarrito();
+    bumpCarritoFab();
+  }
+
+  function cambiarCantidadCarrito(key, delta) {
+    var item = carrito.filter(function (x) { return x.key === key; })[0];
+    if (!item) return;
+    item.cantidad += delta;
+    if (item.cantidad <= 0) carrito = carrito.filter(function (x) { return x.key !== key; });
+    guardarCarrito();
+    renderCarrito();
+  }
+
+  function quitarDelCarrito(key) {
+    carrito = carrito.filter(function (x) { return x.key !== key; });
+    guardarCarrito();
+    renderCarrito();
+  }
+
+  function bumpCarritoFab() {
+    var fab = $('#carrito-fab'); if (!fab || reduce.matches) return;
+    fab.classList.remove('is-bump');
+    void fab.offsetWidth; // fuerza el reflow para poder repetir la animación
+    fab.classList.add('is-bump');
+  }
+
+  /* Foto del plato en el carrito, a lo ancho del panel. Se resuelve por `id`
+     contra la carta y no leyendo el `src` de la tarjeta: el grid se vuelve a
+     pintar al filtrar o buscar, así que la tarjeta de origen puede no existir
+     ya. `img` viejo o ausente (carritos guardados antes de esta versión) se
+     recupera igual, y los platos sin foto reusan el mosaico de la letra. */
+  function fotoCarrito(item) {
+    var img = item.img;
+    if (img === undefined) {
+      var p = DISHES.filter(function (x) { return x.id === item.id; })[0];
+      img = p ? (p.img || null) : null;
+    }
+    return img
+      ? '<img class="carrito-item__foto" src="assets/img/' + esc(img) + '.webp" alt="" ' +
+        'loading="lazy" decoding="async" width="372" height="128">'
+      : '<span class="carrito-item__foto carrito-item__foto--vacia" aria-hidden="true">' +
+        esc(item.nombre.charAt(0)) + '</span>';
+  }
+
+  function renderCarrito() {
+    var contador = $('#carrito-contador');
+    if (contador) contador.textContent = String(unidadesCarrito());
+
+    var lista = $('#carrito-lista'), vacio = $('#carrito-vacio'), pie = $('#carrito-pie');
+    if (!lista) return;
+
+    if (!carrito.length) {
+      lista.innerHTML = '';
+      if (vacio) vacio.hidden = false;
+      if (pie) pie.hidden = true;
+      return;
+    }
+    if (vacio) vacio.hidden = true;
+    if (pie) pie.hidden = false;
+
+    /* Tarjeta vertical: cabecera (nombre + precio unitario) → foto grande →
+       pie (cantidad, subtotal y eliminar). */
+    lista.innerHTML = carrito.map(function (item) {
+      var nombre = esc(item.nombre) +
+        (item.etiqueta ? ' <span class="carrito-item__var">· ' + esc(item.etiqueta) + '</span>' : '');
+      return '<li class="carrito-item" data-key="' + esc(item.key) + '">' +
+        '<div class="carrito-item__cab">' +
+          '<span class="carrito-item__nombre">' + nombre + '</span>' +
+          '<span class="carrito-item__precio tabular">' + money(item.precio) + ' c/u</span>' +
+        '</div>' +
+        fotoCarrito(item) +
+        '<div class="carrito-item__pie">' +
+          '<div class="carrito-item__cant">' +
+            '<button type="button" data-qty="-1" aria-label="Quitar una unidad de ' + esc(item.nombre) + '">–</button>' +
+            '<span class="tabular">' + item.cantidad + '</span>' +
+            '<button type="button" data-qty="1" aria-label="Añadir una unidad de ' + esc(item.nombre) + '">+</button>' +
+          '</div>' +
+          '<span class="carrito-item__sub tabular">' + money(item.precio * item.cantidad) + '</span>' +
+          '<button class="carrito-item__quitar" type="button" data-quitar aria-label="Eliminar ' + esc(item.nombre) + ' del carrito">' +
+            '<svg aria-hidden="true"><use href="#i-x"></use></svg></button>' +
+        '</div>' +
+      '</li>';
+    }).join('');
+
+    var total = $('#carrito-total-num');
+    if (total) total.textContent = money(totalCarrito());
+  }
+
+  function toggleCarrito(open) {
+    var panel = $('#carrito-panel'), overlay = $('#carrito-overlay'), fab = $('#carrito-fab');
+    if (!panel) return;
+    panel.setAttribute('data-open', String(open));
+    if (overlay) overlay.setAttribute('data-open', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+    if (fab) fab.setAttribute('aria-expanded', String(open));
+    if (open) {
+      var f = panel.querySelector('.cerrar, [data-qty], #carrito-confirmar');
+      if (f) f.focus();
+    } else if (fab) fab.focus();
+  }
+  function abrirCarrito() { toggleCarrito(true); }
+  function cerrarCarrito() { toggleCarrito(false); }
+
+  function confirmarPedidoWhatsApp() {
+    if (!carrito.length) return;
+    var lineas = carrito.map(function (item) {
+      var nombre = item.nombre + (item.etiqueta ? ' (' + item.etiqueta + ')' : '');
+      return item.cantidad + 'x ' + nombre + ' (' + money(item.precio * item.cantidad) + ')';
+    });
+    var texto = '¡Hola ' + CFG.nombre + '! 👋 Quiero hacer el siguiente pedido: ' +
+      lineas.join(', ') + '. Total: ' + money(totalCarrito()) + '.';
+    var url = waLink(texto);
+
+    /* Se abre dentro del gesto del usuario para que no lo frene el
+       bloqueador de ventanas emergentes. */
+    var w = window.open(url, '_blank', 'noopener');
+    if (!w) window.location.href = url;
+  }
+
+  function initCarrito() {
+    cargarCarrito();
+    renderCarrito();
+
+    document.addEventListener('click', function (e) {
+      var add = e.target.closest('[data-add]');
+      if (add) { agregarAlCarrito(add.getAttribute('data-add')); return; }
+
+      if (e.target.closest('#carrito-fab')) { abrirCarrito(); return; }
+      if (e.target.closest('[data-carrito-cerrar]')) { cerrarCarrito(); return; }
+
+      var qty = e.target.closest('[data-qty]');
+      if (qty) {
+        var li = qty.closest('.carrito-item');
+        if (li) cambiarCantidadCarrito(li.getAttribute('data-key'), parseInt(qty.getAttribute('data-qty'), 10));
+        return;
+      }
+      var quitar = e.target.closest('[data-quitar]');
+      if (quitar) {
+        var li2 = quitar.closest('.carrito-item');
+        if (li2) quitarDelCarrito(li2.getAttribute('data-key'));
+        return;
+      }
+      if (e.target.closest('#carrito-confirmar')) { confirmarPedidoWhatsApp(); return; }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      var panel = $('#carrito-panel');
+      if (e.key === 'Escape' && panel && panel.getAttribute('data-open') === 'true') cerrarCarrito();
+    });
+  }
+
+  /* ---------------------------------------------------------------
      2. Datos del negocio en el HTML
   --------------------------------------------------------------- */
   function hydrateConfig() {
@@ -60,6 +260,10 @@
     $$('[data-wa]').forEach(function (a) { a.href = waGeneral(); });
 
     var year = $('#anio'); if (year) year.textContent = new Date().getFullYear();
+
+    /* Este contador vive suelto en el HTML (no es una zona de build.js), así
+       que se recalcula aquí para que no se quede viejo al tocar la carta. */
+    var nPlatos = $('#metrica-platos'); if (nPlatos) nPlatos.textContent = DISHES.length;
 
     var ig = $('#red-ig'), tt = $('#red-tt');
     if (ig) { ig.href = CFG.redes.instagram.url; ig.title = CFG.redes.instagram.user; }
@@ -231,16 +435,25 @@
     var tags = (p.tags || []).map(function (t) { return '<span class="chip">' + esc(t) + '</span>'; }).join('');
     if (p.nota) tags += '<span class="chip">' + esc(p.nota) + '</span>';
 
+    var precioCarrito = precioAgregable(p);
+    var addBtn = precioCarrito != null
+      ? '<button class="plato__add" type="button" data-add="' + p.id + '">' +
+          '<svg aria-hidden="true"><use href="#i-bag"></use></svg>' +
+          '<span>Añadir al carrito</span></button>'
+      : '';
+
     return '<article class="plato" data-rv="card" style="--d:' + Math.min(i, 7) * 60 + 'ms">' + media +
       '<div class="plato__body">' +
         '<div class="plato__top"><h4 class="plato__name">' + esc(p.nombre) + '</h4>' + precio + '</div>' +
         '<p class="plato__desc">' + esc(p.desc) + '</p>' +
         (vars ? '<div class="plato__vars">' + vars + '</div>' : '') +
         (tags ? '<div class="plato__tags">' + tags + '</div>' : '') +
-        '<a class="plato__wa" href="' + waDish(p) + '" target="_blank" rel="noopener">' +
-          '<svg aria-hidden="true"><use href="#i-wa"></use></svg>' +
-          '<span class="plato__wa-txt">Pedir para llevar</span>' +
-          '<span class="sr-only"> ' + esc(p.nombre) + '</span></a>' +
+        '<div class="plato__actions">' + addBtn +
+          '<a class="plato__wa" href="' + waDish(p) + '" target="_blank" rel="noopener">' +
+            '<svg aria-hidden="true"><use href="#i-wa"></use></svg>' +
+            '<span class="plato__wa-txt">Comprar directo</span>' +
+            '<span class="sr-only"> ' + esc(p.nombre) + '</span></a>' +
+        '</div>' +
       '</div></article>';
   }
 
@@ -595,6 +808,7 @@
     initHero();
     initBotones();
     initPWA();
+    initCarrito();
     observeReveals(document);
 
     /* Enlace directo a una sección de la carta: index.html#carta=parrilla */
